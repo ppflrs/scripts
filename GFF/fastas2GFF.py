@@ -16,14 +16,17 @@ def map_bowtie(f, index_name):
         gene_len = len(str(sequence.seq))
 
         description = list()
-        description.append(sequence.id) #id
+        
         description.append(index_name) #bowtie index name
+        description.append('beja_lab') #source of the sequence
+        description.append('CDS') #Feature type: This can be exon, promotor, etc for us CDS it's ok i guess
         description.append(counter) #start
         description.append(counter + gene_len) #end
-        description.append('CDS') #Feature type: This can be exon, promotor, etc for us CDS it's ok i guess
         description.append('.') #score ???
         description.append('+') #strand
-        description.append('ID=CDS'+str(seqid_counter).zfill(4)) #CDS0001, CDS0002, etc
+        description.append('.') #score ???
+        description.append('GeneID '+ sequence.id + ' ' + str(seqid_counter).zfill(4)) #CDS0001, CDS0002, etc
+        
         description.append('\n')
 
         map_dict[seqid_counter] = description
@@ -32,6 +35,6 @@ def map_bowtie(f, index_name):
         cat_genes.write(str(sequence.seq))
 
     with open(f + '.map', 'w') as m:
-        m.write('##gff-version 3\n')
+        m.write('##gff-version 2\n')
         m.writelines('\t'.join(map(str,map_dict[k])) for k in map_dict.keys())
     return
