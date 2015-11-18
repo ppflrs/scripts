@@ -26,8 +26,7 @@ def map_bowtie(f, index_name):
         description.append('.') #score ???
         description.append('+') #strand
         description.append('.') #score ???
-        description.append('GeneID '+ sequence.id + ' ' + str(seqid_counter).zfill(4)) #CDS0001, CDS0002, etc
-        
+        description.append('GeneID '+ sequence.id)# + ' ' + str(seqid_counter).zfill(4)) #CDS0001, CDS0002, etc
         description.append('\n')
 
         map_dict[seqid_counter] = description
