@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#fastas2GFF.py gets a multisequence FASTA file and outputs a GFF file
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -16,7 +18,6 @@ def map_bowtie(f, index_name):
         gene_len = len(str(sequence.seq))
 
         description = list()
-        
         description.append(index_name) #bowtie index name
         description.append('beja_lab') #source of the sequence
         description.append('CDS') #Feature type: This can be exon, promotor, etc for us CDS it's ok i guess
