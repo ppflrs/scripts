@@ -1,4 +1,13 @@
 #!/bin/bash
+if [ "$1" == "-h" ] ; then
+    echo "Help message"
+    echo "Usage: `basename $0`[-h] FOLDER BOWTIE2_INDEX THREADS_NUMBER"
+    echo "-h        Show this help text"
+    echo "FOLDER    Folder containing fastq.gz files"
+    echo "BOWTIE2_INDEX   bowtie2 index"
+    echo "THREADS_NUMBER Number of threads to use on bowtie2"
+    exit 0
+fi
 
 #Argument verification code obtained from http://stackoverflow.com/questions/4341630/checking-for-the-correct-number-of-arguments
 #Add option to receive files instead of folder
@@ -39,7 +48,7 @@ bowtie2_index=$2
 #number of threads
 threads=$3
 
-_now=$(date -v-1d +'%Y_%m_%d')
+_now=$(date +'%Y%m%d')
 name=mapping"$_now"
 if [[ -e $name.log ]] ; then
     i=0
@@ -63,8 +72,7 @@ do
   bowtie2 -p $threads -x $bowtie2_index -a --very-sensitive-local -t -q -1 $fn1 -2 $fn2 | samtools view -Sb -F 4 - | samtools sort -n - ./bam/"$sorted_bam" 2>> $name.log
 
   status=$?
-  if test $status -ne 0
-    then
-      echo "Error while analyzing: '$dataset'"
+  if test $status -ne 0 ; then
+    echo "Error while analyzing: '$dataset'" >> $name.log
   fi
 done
