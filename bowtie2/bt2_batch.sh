@@ -49,7 +49,7 @@ bowtie2_index=$2
 threads=$3
 
 _now=$(date +'%Y%m%d')
-name=mapping"$_now"
+name=mapping_"$_now"
 if [[ -e $name.log ]] ; then
     i=0
     while [[ -e $name-$i.log ]] ; do
@@ -57,7 +57,11 @@ if [[ -e $name.log ]] ; then
     done
     name=$name-$i
 fi
-touch $name.log
+
+echo "Date:"date >  $name.log
+echo "bowtie2 analysis." >>  $name.log
+bowtie2 --version >> $name.log
+
 
 for file in $(find "$dir_gz" -name "*_1.fastq.gz");
 do
