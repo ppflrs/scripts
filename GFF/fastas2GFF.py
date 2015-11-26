@@ -16,32 +16,33 @@ def map_bowtie(input_file, index_name):
     counter = 1 #To comply with the GFF format file specifications needs to start at 1
 
     output_fasta_file = os.path.splitext(input_file)[0] + '.concatenated.fasta'
-    cat_genes = open(output_fasta_file, 'a')
-    cat_genes.write('>' + index_name + '\n') #FASTA header
+    with open(output_fasta_file, 'w') as cat_genes:
+        cat_genes.write('>' + index_name + '\n') #FASTA header
+        cat_sequence = str()
 
-    seqid_counter = 1 #To order the output of the sequence
+        seqid_counter = 1 #To order the output of the sequence
 
-    for sequence in dna:
-        gene_len = len(str(sequence.seq))
+        for sequence in dna:
+            gene_len = len(str(sequence.seq))
 
-        description = list()
-        description.append(index_name) #bowtie index name
-        description.append('beja_lab') #source of the sequence
-        description.append('CDS') #Feature type: This can be exon, promotor, etc for us CDS it's ok i guess
-        description.append(counter) #start
-        description.append(counter + gene_len) #end
-        description.append('.') #score ???
-        description.append('+') #strand
-        description.append('.') #score ???
-        description.append('GeneID '+ sequence.id)# + ' ' + str(seqid_counter).zfill(4)) #CDS0001, CDS0002, etc
-        description.append('\n')
+            description = list()
+            description.append(index_name) #bowtie index name
+            description.append('beja_lab') #source of the sequence
+            description.append('CDS') #Feature type: This can be exon, promotor, etc for us CDS it's ok i guess
+            description.append(counter) #start
+            description.append(counter + gene_len) #end
+            description.append('.') #score ???
+            description.append('+') #strand
+            description.append('.') #score ???
+            description.append('GeneID '+ sequence.id + '\n')
 
-        map_dict[seqid_counter] = description
-        seqid_counter += 1
-        counter += (gene_len)
-        cat_genes.write(str(sequence.seq))
+            map_dict[seqid_counter] = description
+            seqid_counter += 1
+            counter += (gene_len)
 
-    output_gff_file = os.path.splitext(input_file)[0] + '.GFF2'
+            cat_genes.write(cat_sequence)
+
+        output_gff_file = os.path.splitext(input_file)[0] + '.GFF2'
     with open(output_gff_file, 'w') as m:
         m.write('##gff-version 2\n')
         m.writelines('\t'.join(map(str,map_dict[k])) for k in map_dict.keys())
