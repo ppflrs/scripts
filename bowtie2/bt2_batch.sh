@@ -69,7 +69,7 @@ do
 	dataset=${fn%%_1*}
 	fn1=$file
 	fn2=${fn1/"_1.fastq.gz"/$"_2.fastq.gz"}
-  sorted_bam="$dataset"."$index_file".bt2.sorted
+  sorted_bam="$dataset"."$bowtie2_index".bt2.sorted
 
   echo "Analyzing "$dataset
   echo "Analyzing "$dataset >> $name.log
