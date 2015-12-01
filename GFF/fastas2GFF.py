@@ -8,7 +8,7 @@ from Bio.Seq import Seq
 if len(sys.argv) != 3:
     sys.exit('Usage: %s <fasta_file> <bt2_index_name>' % sys.argv[0])
 
-def map_bowtie(input_file, index_name):
+def fastas2GFF(input_file, index_name):
     handle = open(input_file, 'rU')
     dna = list(SeqIO.parse(handle, 'fasta'))
     handle.close()
@@ -51,4 +51,4 @@ def map_bowtie(input_file, index_name):
 fasta_file = sys.argv[1]
 bt2_index = sys.argv[2]
 
-map_bowtie(fasta_file, bt2_index)
+fastas2GFF(fasta_file, bt2_index)
