@@ -2,14 +2,46 @@
 # coding: utf-8
 
 # In[18]:
-
+import argparse
 import sys
 import HTSeq
 import re
 import pandas as pd
 
-if len(sys.argv) < 2:
-    sys.exit('Usage: %s BAM_file(s)' % sys.argv[0])
+arg_parser = argparse.ArgumentParser(description='Processes a BAM file into TSV.')
+arg_parser.add_argument("input_file",type=str, help='<input file>, can be a stream indicating "-"')
+arg_parser.add_argument("-id","--min_id",type=float, default=95.0, help='Minimal %% of identity to reference sequence to gather the read. (Default = 95.0)')
+arg_parser.add_argument("-len","--min_len",type=int, default=60, help='Minimal lenght of the read to be proccessed. (Default = 60)')
+arg_parser.add_argument("-clip","--max_clip",type=float, default=0.3, help='Max clipping allowed on the alignment. (Default = 0.30)')
+args = arg_parser.parse_args()
+
+if args.input_file:
+    try:
+        if args.input_file == '':
+            print "No input file given. exiting..."
+            sys.exit(1)
+
+        elif args.input_file == '-':
+
+            bam_file = HTSeq.SAM_Reader(sys.stdin)
+
+        elif args.input_file != '-':
+
+            bam_file = HTSeq.BAM_Reader(args.input_file)
+
+    except Exception as e:
+                    print "Failed processing SAM/BAM file"
+                    raise
+elif not args.input_file:
+    print "No input file given. exiting..."
+    sys.exit(1)
+
+if args.min_id:
+    min_id = float(args.min_id)
+if args.min_len:
+    min_len = int(args.min_len)
+if args.max_clip:
+    max_clip = float(args.max_clip)
 
 '''Parses BAM files into TSV format using the following parameters min_len=60, max_clip=0.3, min_id=90.0.'''
 
@@ -45,7 +77,7 @@ def parser_md_get_ID(md_string, read_len):
 
 # In[4]:
 
-def parser_aln_list(aln, aln_number, pair_pos, min_len=60, max_clip=0.3, min_id=90.0):
+def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_clip, min_id=min_id):
 
     if aln == None:
         return None
@@ -90,7 +122,7 @@ def bam_parser_2(bam_file):
     output = ''
 
     #for aln in itertools.islice( HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)), 10000 ):  # printing first 5 reads
-    for aln in HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)):  # printing first 5 reads
+    for aln in HTSeq.pair_SAM_alignments(bam_file):  # printing first 5 reads
         query_counter += 1
 
 
@@ -110,7 +142,5 @@ def bam_parser_2(bam_file):
             #print '\n'.join(aln_set)
     return output
 
-for bam_file in sys.argv[1:]:
-
-    t_df2 = bam_parser_2(bam_file)
-    print t_df2
+t_df2 = bam_parser_2(bam_file)
+print t_df2
