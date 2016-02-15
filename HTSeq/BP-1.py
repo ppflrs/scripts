@@ -6,41 +6,48 @@ import HTSeq
 import re
 import pandas as pd
 
-arg_parser = argparse.ArgumentParser(description='Processes a BAM file into TSV.')
-arg_parser.add_argument("input_file",type=str, help='<input file>, can be a stream indicating "-"')
-arg_parser.add_argument("-id","--min_id",type=float, default=95.0, help='Minimal %% of identity to reference sequence to gather the read. (Default = 95.0)')
-arg_parser.add_argument("-len","--min_len",type=int, default=60, help='Minimal lenght of the read to be proccessed. (Default = 60)')
-arg_parser.add_argument("-clip","--max_clip",type=float, default=0.3, help='Max clipping allowed on the alignment. (Default = 0.30)')
-args = arg_parser.parse_args()
+def main():
+    arg_parser = argparse.ArgumentParser(description='Processes a BAM file into TSV.')
+    arg_parser.add_argument("input_file",type=str, help='<input file>, can be a stream indicating "-"')
+    arg_parser.add_argument("-id","--min_id",type=float, default=95.0, help='Minimal %% of identity to reference sequence to gather the read. (Default = 95.0)')
+    arg_parser.add_argument("-len","--min_len",type=int, default=60, help='Minimal lenght of the read to be proccessed. (Default = 60)')
+    arg_parser.add_argument("-clip","--max_clip",type=float, default=0.3, help='Max clipping allowed on the alignment. (Default = 0.30)')
+    args = arg_parser.parse_args()
 
-if args.input_file:
-    try:
-        if args.input_file == '':
-            print "No input file given. exiting..."
-            sys.exit(1)
+    if args.input_file:
+        try:
+            if args.input_file == '':
+                print "No input file given. exiting..."
+                sys.exit(1)
 
-        elif args.input_file == '-':
+            elif args.input_file == '-':
 
-            bam_file = HTSeq.SAM_Reader(sys.stdin)
+                bam_file = HTSeq.SAM_Reader(sys.stdin)
 
-        elif args.input_file != '-':
+            elif args.input_file != '-':
 
-            bam_file = HTSeq.BAM_Reader(args.input_file)
-            output_filename = args.input_file.replace('.bam','.tsv')
+                bam_file = HTSeq.BAM_Reader(args.input_file)
+                output_filename = args.input_file.replace('.bam','.tsv')
 
-    except Exception as e:
-                    print "Failed processing SAM/BAM file"
-                    raise
-elif not args.input_file:
-    print "No input file given. exiting..."
-    sys.exit(1)
+        except Exception as e:
+                        print "Failed processing SAM/BAM file"
+                        raise
+    elif not args.input_file:
+        print "No input file given. exiting..."
+        sys.exit(1)
 
-if args.min_id:
-    min_id = float(args.min_id)
-if args.min_len:
-    min_len = int(args.min_len)
-if args.max_clip:
-    max_clip = float(args.max_clip)
+    if args.min_id:
+        min_id = float(args.min_id)
+    if args.min_len:
+        min_len = int(args.min_len)
+    if args.max_clip:
+        max_clip = float(args.max_clip)
+
+    df = bam_parser_2(bam_file, min_len=min_len, max_clip=max_clip, min_id=min_id)
+    df.to_csv(output_filename, sep='\t', header=False, index=False)
+
+    print 'Output file:', output_filename
+
 
 '''Parses BAM files into TSV format using the following parameters min_len=60, max_clip=0.3, min_id=90.0.'''
 
@@ -70,7 +77,7 @@ def parser_md_get_ID(md_string, read_len):
                 md_mismatches += 1
     return 100*float(md_matches)/read_len
 
-def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_clip, min_id=min_id):
+def parser_aln_list(aln, aln_number, pair_pos, min_len, max_clip, min_id):
 
     if aln == None:
         return None
@@ -103,7 +110,7 @@ def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_cli
 
         return aln_list
 
-def bam_parser_2(bam_file):
+def bam_parser_2(bam_file, min_len, max_clip, min_id):
     bam_dict = {}
 
     query_counter = 0
@@ -116,8 +123,8 @@ def bam_parser_2(bam_file):
 
         query_1, query_2 = aln
 
-        q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1)
-        q2_aln = parser_aln_list(query_2, aln_number = query_counter, pair_pos = 2)
+        q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1, min_len=min_len, max_clip=max_clip, min_id=min_id)
+        q2_aln = parser_aln_list(query_2, aln_number = query_counter, pair_pos = 2, min_len=min_len, max_clip=max_clip, min_id=min_id)
 
         alns = [q1_aln, q2_aln]
 
@@ -133,7 +140,4 @@ def bam_parser_2(bam_file):
 
     return pd.DataFrame(output_list, columns=df_columns)
 
-t_df = bam_parser_2(bam_file)
-t_df.to_csv(output_filename, sep='\t', header=False, index=False)
-
-print 'Output file:', output_filename
+main()
