@@ -26,6 +26,7 @@ if args.input_file:
         elif args.input_file != '-':
 
             bam_file = HTSeq.BAM_Reader(args.input_file)
+            output_filename = args.input_file.replace('.bam','.tsv')
 
     except Exception as e:
                     print "Failed processing SAM/BAM file"
@@ -84,7 +85,6 @@ def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_cli
     query_clip_pct = float(parser_cigar(aln.cigar)['S']) / query_len
     query_id = parser_md_get_ID(aln.optional_field('MD'), query_len)
 
-
     if query_len < min_len:
         return None
     elif query_clip_pct >= max_clip:
@@ -101,34 +101,39 @@ def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_cli
         aln_list.append(query_score)
         aln_list.append(query_clip_pct)
 
-        return '\t'.join(map(str,aln_list)) + '\n'
+        return aln_list
 
 def bam_parser_2(bam_file):
     bam_dict = {}
 
     query_counter = 0
 
-    output = ''
+    output_list = list()
 
     #for aln in itertools.islice( HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)), N ):  # printing first N reads
     for aln in HTSeq.pair_SAM_alignments(bam_file):
         query_counter += 1
 
-
         query_1, query_2 = aln
-
 
         q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1)
         q2_aln = parser_aln_list(query_2, aln_number = query_counter, pair_pos = 2)
 
-        aln_set = set([q1_aln, q2_aln])
+        alns = [q1_aln, q2_aln]
 
-        if aln_set == {None}:
+        if alns == [None, None]:
             continue
         else:
-            aln_set.discard(None)
-            output += '\n'.join(aln_set)
-    return output
+            if None in alns:
+                alns.remove(None)
+            output_list.append(alns)
 
-t_df2 = bam_parser_2(bam_file)
-print t_df2
+    df_columns = ['ALN','QUERY','REF','SEQ','LEN','ID','SCORE','CLIP_PCT']
+    output_list = [item for sublist in output_list for item in sublist]
+
+    return pd.DataFrame(output_list, columns=df_columns)
+
+t_df = bam_parser_2(bam_file)
+t_df.to_csv(output_filename, sep='\t', header=False, index=False)
+
+print 'Output file:', output_filename
