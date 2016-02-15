@@ -1,7 +1,5 @@
+#!/usr/bin/env python
 
-# coding: utf-8
-
-# In[18]:
 import argparse
 import sys
 import HTSeq
@@ -56,9 +54,6 @@ def parser_cigar(cigar):
             cigar_ops_dict[cigar_op.type] += cigar_op.size
     return cigar_ops_dict
 
-
-# In[3]:
-
 def parser_md_get_ID(md_string, read_len):
     md_list = re.split('(\D|\W)', md_string)
     md_matches = 0
@@ -73,9 +68,6 @@ def parser_md_get_ID(md_string, read_len):
             else:
                 md_mismatches += 1
     return 100*float(md_matches)/read_len
-
-
-# In[4]:
 
 def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_clip, min_id=min_id):
 
@@ -111,9 +103,6 @@ def parser_aln_list(aln, aln_number, pair_pos, min_len=min_len, max_clip=max_cli
 
         return '\t'.join(map(str,aln_list)) + '\n'
 
-
-# In[5]:
-
 def bam_parser_2(bam_file):
     bam_dict = {}
 
@@ -121,8 +110,8 @@ def bam_parser_2(bam_file):
 
     output = ''
 
-    #for aln in itertools.islice( HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)), 10000 ):  # printing first 5 reads
-    for aln in HTSeq.pair_SAM_alignments(bam_file):  # printing first 5 reads
+    #for aln in itertools.islice( HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)), N ):  # printing first N reads
+    for aln in HTSeq.pair_SAM_alignments(bam_file):
         query_counter += 1
 
 
@@ -139,7 +128,6 @@ def bam_parser_2(bam_file):
         else:
             aln_set.discard(None)
             output += '\n'.join(aln_set)
-            #print '\n'.join(aln_set)
     return output
 
 t_df2 = bam_parser_2(bam_file)
