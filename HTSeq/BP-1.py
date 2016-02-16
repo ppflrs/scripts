@@ -117,7 +117,7 @@ def main():
             query_count = query + '\t' + str(len(g_unique.get_group(query))) + '\n'
             fh_aligned_counts.write(query_count)
         if amb_count:
-            fh_aligned_counts.write('ambigous\t' + str(amb_count) + '\n')
+            fh_aligned_counts.write('ambiguous\t' + str(amb_count) + '\n')
 
 def parser_cigar(cigar):
     cigar_ops_dict = {}
