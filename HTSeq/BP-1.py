@@ -14,6 +14,7 @@ def main():
     arg_parser.add_argument("-id","--min_id",type=float, default=95.0, help='Minimal %% of identity to reference sequence to gather the read. (Default = 95.0)')
     arg_parser.add_argument("-len","--min_len",type=int, default=60, help='Minimal lenght of the read to be proccessed. (Default = 60)')
     arg_parser.add_argument("-clip","--max_clip",type=float, default=0.3, help='Max clipping allowed on the alignment. (Default = 0.30)')
+    arg_parser.add_argument("--out_dir",type=str, default='./', help='folder where to store the output files.')
     args = arg_parser.parse_args()
 
     if args.input_file:
@@ -43,6 +44,15 @@ def main():
         min_len = int(args.min_len)
     if args.max_clip:
         max_clip = float(args.max_clip)
+    if args.out_dir:
+        if args.out_dir != './':
+            import os
+
+            out_dir = str(args.out_dir) + '/'
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+        else:
+            out_dir = str(args.out_dir)
 
     '''DF containing the raw alignments'''
     df = bam_parser_2(bam_file, min_len=min_len, max_clip=max_clip, min_id=min_id)
@@ -56,13 +66,11 @@ def main():
             sys.exit(error_msg)
             raise
 
-    amb_count = None
+    amb_summary = None
     aligned_aln_list = list()
     amb_list = list()
 
     dataset_id = df.ix[0]['QUERY'].split('.')[0]
-
-    df = df[df['ID'] >= 95.0]
 
     df2 = df.sort_values(by=['ALN','SCORE'], ascending=[1,0]).drop_duplicates('ALN')
 
@@ -81,22 +89,34 @@ def main():
     if len(amb_list) > 0:
         amb_df = pd.concat(amb_list)
 
-        amb_count = len(amb_df['MASTER_QUERY'].unique())
+        g_amb_df = amb_df.groupby('MASTER_QUERY')
+        amb_df = g_amb_df.apply(amb_cluster)
+        amb_df = amb_df.reset_index(level=0, drop=True)
+
+        amb_df.columns = ['ALN','QUERY','REF','SEQ','LEN','ID','SCORE','CLIP_PCT','MASTER_QUERY','AMB_STR']
+
+        '''Counts the ambiguous reads'''
+        amb_count = len(amb_df.drop_duplicates('MASTER_QUERY'))
+        amb_summary = 'ambiguous\t' + str(amb_count) + '\n'
+        for ref in sorted(amb_df['REF'].unique()):
+            amb_count = len(amb_df.loc[amb_df['REF'] == ref])
+            amb_summary += ref + '-amb\t' + str(amb_count) + '\n'
 
         '''FASTA file writing of ambiguously aligned reads'''
-        with open('./'+ dataset_id + '.amb.fasta','w') as fh_amb:
+        with open(out_dir + dataset_id + '.amb.fasta','w') as fh_amb:
             ambiguous_reads = amb_df.apply(lambda x: df_2_fasta(x), axis = 1).reset_index(drop=True)
             for ambiguous_read in ambiguous_reads:
                 fh_amb.write(ambiguous_read)
 
-        output_columns = ['MASTER_QUERY','REF','SCORE','ID']
+        output_columns = ['MASTER_QUERY','REF','SCORE','ID','AMB_STR']
         amb_df = amb_df[output_columns]
+
         amb_df.rename(columns={'MASTER_QUERY': 'QUERY'}, inplace=True)
 
-        amb_df.to_csv('./'+ dataset_id + '.amb.tsv', sep='\t', header=False, index=False)
+        amb_df.to_csv(out_dir + dataset_id + '.amb.tsv', sep='\t', header=False, index=False)
 
     '''FASTA file writing'''
-    with open('./'+ dataset_id + '.fasta','w') as fh_aligned:
+    with open(out_dir + dataset_id + '.fasta','w') as fh_aligned:
 
         aligned_reads = unique_df.apply(lambda x: df_2_fasta(x), axis = 1).reset_index(drop=True)
         for read in aligned_reads:
@@ -106,18 +126,36 @@ def main():
         output_columns = ['QUERY','REF','SCORE','ID']
         unique_df = unique_df[output_columns]
 
-        unique_df.to_csv('./'+ dataset_id + '.unique_counts.tsv', sep='\t', header=False, index=False)
+        unique_df.to_csv(out_dir + dataset_id + '.unique_counts.tsv', sep='\t', header=False, index=False)
 
     '''Counts file writing'''
-    with open('./'+ dataset_id + '.counts','w') as fh_aligned_counts:
+    with open(out_dir + dataset_id + '.counts','w') as fh_aligned_counts:
         g_unique = unique_df.groupby('REF')
 
-    ###MAYBE USE THE .UNIQUE AND .LOC METHOD?
-        for query in g_unique.groups.keys():
-            query_count = query + '\t' + str(len(g_unique.get_group(query))) + '\n'
-            fh_aligned_counts.write(query_count)
-        if amb_count:
-            fh_aligned_counts.write('ambiguous\t' + str(amb_count) + '\n')
+        for query in sorted(unique_df['REF'].unique()):
+
+            query_count = len(unique_df.loc[unique_df['REF'] == query])
+            query_string = query + '\t' + str(query_count) + '\n'
+
+            fh_aligned_counts.write(query_string)
+
+        if amb_summary:
+            fh_aligned_counts.write(amb_summary)
+
+def amb_cluster(group):
+    long_name_list = []
+    for ref in group.REF:
+        long_name_list.append(ref + '-amb')
+
+    long_name = '-'.join(long_name_list)
+
+    idx_to_get = group['SCORE'].idxmax()
+
+    group['REF_AMB'] = long_name
+
+    df_out = group.loc[idx_to_get,:]
+
+    return df_out.reset_index(level=0, drop=True)
 
 def parser_cigar(cigar):
     cigar_ops_dict = {}
@@ -185,7 +223,8 @@ def bam_parser_2(bam_file, min_len, max_clip, min_id):
 
     output_list = list()
 
-    #for aln in itertools.islice( HTSeq.pair_SAM_alignments(HTSeq.BAM_Reader(bam_file)), N ):  # printing first N reads
+    #import itertools
+    #for aln in itertools.islice( HTSeq.pair_SAM_alignments(bam_file), 1000 ):  # printing first N reads
     for aln in HTSeq.pair_SAM_alignments(bam_file):
         query_counter += 1
 
@@ -239,8 +278,12 @@ def dupe_remover(grouped_df):
     return aligned_aln_list, amb_list
 
 def df_2_fasta(dataframe):
+
     fasta_header = '>'
-    fasta_header += '_'.join(map(str, [dataframe['QUERY'], dataframe['REF'], dataframe['SCORE'], dataframe['ID']])) + '\n'
+    if 'AMB_STR' in set(dataframe.index):
+        fasta_header += '_'.join(map(str, [dataframe['QUERY'], dataframe['AMB_STR'], dataframe['SCORE'], dataframe['ID']])) + '\n'
+    else:
+        fasta_header += '_'.join(map(str, [dataframe['QUERY'], dataframe['REF'], dataframe['SCORE'], dataframe['ID']])) + '\n'
     fasta_seq = dataframe['SEQ'] + '\n'
 
     fasta_record = ''
