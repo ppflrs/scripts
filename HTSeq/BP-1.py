@@ -14,8 +14,11 @@ def main():
     arg_parser.add_argument("-id","--min_id",type=float, default=95.0, help='Minimal %% of identity to reference sequence to gather the read. (Default = 95.0)')
     arg_parser.add_argument("-len","--min_len",type=int, default=60, help='Minimal lenght of the read to be proccessed. (Default = 60)')
     arg_parser.add_argument("-clip","--max_clip",type=float, default=0.3, help='Max clipping allowed on the alignment. (Default = 0.30)')
-    arg_parser.add_argument("--out_dir",type=str, default='./', help='folder where to store the output files.')
+    arg_parser.add_argument("--out_dir",type=str, default='./', help='Folder where to store the output files.')
+    arg_parser.add_argument("--mode",type=str, default='paired', help='Alignment type of the input files. (paired or single)')
     args = arg_parser.parse_args()
+
+    dataset_id = ''
 
     if args.input_file:
         try:
@@ -31,12 +34,13 @@ def main():
 
                 bam_file = HTSeq.BAM_Reader(args.input_file)
 
+                dataset_id = args.input_file.split('/')[-1].split('.')[0]
+
         except Exception as e:
                         print "Failed processing SAM/BAM file"
                         raise
     elif not args.input_file:
-        print "No input file given. exiting..."
-        sys.exit(1)
+        sys.exit("No input file given. exiting...")
 
     if args.min_id:
         min_id = float(args.min_id)
@@ -53,13 +57,19 @@ def main():
                 os.makedirs(out_dir)
         else:
             out_dir = str(args.out_dir)
+    if args.mode == 'paired':
+        mode = str(args.mode)
+    elif args.mode == 'single':
+        mode = str(args.mode)
+    else:
+        sys.exit("No valid aligment type.")
 
     '''DF containing the raw alignments'''
-    df = bam_parser_2(bam_file, min_len=min_len, max_clip=max_clip, min_id=min_id)
-    #df.to_csv(output_filename, sep='\t', header=False, index=False)
+    df = bam_parser_2(bam_file, min_len=min_len, max_clip=max_clip, min_id=min_id, mode=mode)
 
     try:
-        dataset_id = df.ix[0]['QUERY'].split('.')[0]
+        if dataset_id == '':
+            dataset_id = df.ix[0]['QUERY'].split('.')[0]
     except Exception as e:
         if args.input_file != '-':
             error_msg = 'Error: No alignments in input file.' + args.input_file
@@ -70,7 +80,8 @@ def main():
     aligned_aln_list = list()
     amb_list = list()
 
-    dataset_id = df.ix[0]['QUERY'].split('.')[0]
+    if dataset_id == '':
+        dataset_id = df.ix[0]['QUERY'].split('.')[0]
 
     df2 = df.sort_values(by=['ALN','SCORE'], ascending=[1,0]).drop_duplicates('ALN')
 
@@ -216,31 +227,46 @@ def parser_aln_list(aln, aln_number, pair_pos, min_len, max_clip, min_id):
 
         return aln_list
 
-def bam_parser_2(bam_file, min_len, max_clip, min_id):
+def bam_parser_2(bam_file, min_len, max_clip, min_id, mode):
     bam_dict = {}
 
     query_counter = 0
 
     output_list = list()
 
-    #import itertools
-    #for aln in itertools.islice( HTSeq.pair_SAM_alignments(bam_file), 1000 ):  # printing first N reads
-    for aln in HTSeq.pair_SAM_alignments(bam_file):
-        query_counter += 1
+    if mode == 'paired':
+        #import itertools
+        #for aln in itertools.islice( HTSeq.pair_SAM_alignments(bam_file), 1000 ):  # printing first N reads
+        for aln in HTSeq.pair_SAM_alignments(bam_file):
+            query_counter += 1
 
-        query_1, query_2 = aln
+            query_1, query_2 = aln
 
-        q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1, min_len=min_len, max_clip=max_clip, min_id=min_id)
-        q2_aln = parser_aln_list(query_2, aln_number = query_counter, pair_pos = 2, min_len=min_len, max_clip=max_clip, min_id=min_id)
+            q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1, min_len=min_len, max_clip=max_clip, min_id=min_id)
+            q2_aln = parser_aln_list(query_2, aln_number = query_counter, pair_pos = 2, min_len=min_len, max_clip=max_clip, min_id=min_id)
 
-        alns = [q1_aln, q2_aln]
+            alns = [q1_aln, q2_aln]
 
-        if alns == [None, None]:
-            continue
-        else:
-            if None in alns:
-                alns.remove(None)
-            output_list.append(alns)
+            if alns == [None, None]:
+                continue
+            else:
+                if None in alns:
+                    alns.remove(None)
+                output_list.append(alns)
+
+    elif mode == 'single':
+        for aln in bam_file:
+
+            query_counter += 1
+
+            query_1 = aln
+
+            q1_aln = parser_aln_list(query_1, aln_number = query_counter, pair_pos = 1, min_len=min_len, max_clip=max_clip, min_id=min_id)
+
+            alns = [q1_aln]
+
+            if q1_aln != None:
+                output_list.append(alns)
 
     df_columns = ['ALN','QUERY','REF','SEQ','LEN','ID','SCORE','CLIP_PCT']
     output_list = [item for sublist in output_list for item in sublist]
